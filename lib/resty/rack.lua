@@ -20,10 +20,25 @@ middleware.restful = require "resty.rack.restful"
 -- @param   table   middleware  The middleware module
 -- @param   table   options     Table of options for the middleware. 
 -- @return  void
-function use(...)
+function use(...) _use('', ...) end
+function after(...) _use('after', ...) end
+function before(...) _use('before', ...) end
+function _use(...)
     -- Process the args
     local args = {...}
-    local route, mw, options = nil, nil, nil
+    local before_or_after, middleware, route, mw, options = nil, nil, nil, nil, nil
+    before_or_after = table.remove(args, 1)
+
+    if not ngx.ctx.rack then 
+        ngx.ctx.rack = { 
+            beforemiddleware = {},
+            middleware = {},
+            aftermiddleware = {} 
+        } 
+    end
+
+    middleware = ngx.ctx.rack[before_or_after .. 'middleware']
+
     route = table.remove(args, 1)
     if type(route) == "table" or type(route) == "function" then
         mw = route
@@ -38,33 +53,19 @@ function use(...)
         if string.sub(ngx.var.uri, 1, route:len()) ~= route then return false end
     end
 
-    if not ngx.ctx.rack then 
-        ngx.ctx.rack = { 
-            middleware = {} 
-        } 
-    end
-
     if (type(mw) == "table" and type(mw.call) == "function") or type(mw) == "function" then
-        
         -- If we have a 'call' function, then we insert the result into our rack
         -- Or if we simply have a function, we can add that instead
         if (type(mw) == "table" and type(mw.call) == "function") then
             mw = mw.call(options)
         end
-        -- If we have a 'index' key, then we insert the result into our rack on the index
-        if options.index then 
-            table.insert(ngx.ctx.rack.middleware, options.index, mw)
-        else
-            table.insert(ngx.ctx.rack.middleware, mw)
-        end
+        table.insert(middleware, mw)
         -- If we have a 'autorun' key, then we run this application
         if options.autorun then run() end
     else
         return nil, "Invalid middleware"
     end
 end
-
-
 -- Start the rack.
 function run()
     -- We need a decent req / res environment to pass around middleware.
@@ -136,6 +137,13 @@ function run()
 
     setmetatable(ngx.ctx.rack.res.header, header_mt)
 
+    -- merge all handlers in ngx.ctx.rack.middleware
+    local middleware = {}
+    for i,v in pairs(ngx.ctx.rack.beforemiddleware) do table.insert(middleware, v) end
+    for i,v in pairs(ngx.ctx.rack.middleware) do table.insert(middleware, v) end
+    for i,v in pairs(ngx.ctx.rack.aftermiddleware) do table.insert(middleware, v) end
+    ngx.ctx.rack.middleware = middleware
+
     next()
 end
 
@@ -188,5 +196,3 @@ getmetatable(resty.rack).__newindex = function (table, key, val)
     error('attempt to write to undeclared variable "' .. key .. '": '
             .. debug.traceback())
 end
-
-
