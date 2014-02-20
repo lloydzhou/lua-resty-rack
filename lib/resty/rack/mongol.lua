@@ -41,18 +41,21 @@ function call(options)
 		    end
 		    return r
 		end
+	    for k,v in pairs(options) do 
+	    	req.options[k] = v
+	    end
 	    conn = mongo:new()
-	    local ok, err = conn:connect(options.host or "210.14.154.142")
+	    local ok, err = conn:connect(req.options.host)
 	    if ok then
-	        local db = conn:new_db_handle(options.dbname)
+	        local db = conn:new_db_handle(req.options.dbname)
 	        if db then
-	            local col = db:get_col(options.collection)
+	            local col = db:get_col(req.options.collection)
 	            if col then
-	                local id, r, t = col:query(options.query or req.options.query or {}, options.fields or req.options.fields or nil, 
-	                	options.skip or req.options.skip or 0, options.limit or req.options.limit or 20, nil, options.bson_callback or readbson_callback)   
-	                req.data = options.callback and options.callback(r) or r
-	                options.callback = ""
-	                req.options = options
+	                local id, r, t = col:query(req.options.query or {}, req.options.fields or nil, 
+	                	req.options.skip or 0, req.options.limit or 20, nil, req.options.bson_callback or readbson_callback)   
+	                req.data = req.options.callback and req.options.callback(r) or r
+	                req.options.callback = ""
+	                req.options.bson_callback = ""
 	                conn:set_keepalive(60, 500)
 	                res.status = 200
 	                return next()
