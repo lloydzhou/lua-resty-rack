@@ -9,9 +9,7 @@ function call(options)
     return function(req, res, next)
 		
 		local tohex = function(s)
-		    return s:gsub('.', function(c) 
-		        return string.format('%02x', string.byte(c)) 
-		    end)
+		    return s:gsub('.', function(c) return string.format('%02x', string.byte(c)) end)
 		end
 		local hex2str = function (s)
 		    return s:gsub('(%x%x)', function(value) return string.char(tonumber(value, 16)) end)

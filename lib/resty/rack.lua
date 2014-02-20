@@ -44,14 +44,21 @@ function use(...)
         } 
     end
 
-    -- If we have a 'call' function, then we insert the result into our rack
-    if type(mw) == "table" and type(mw.call) == "function" then
-        table.insert(ngx.ctx.rack.middleware, mw.call(options))
-        return true
-    -- Or if we simply have a function, we can add that instead
-    elseif (type(mw) == "function") then
-        table.insert(ngx.ctx.rack.middleware, mw)
-        return true
+    if (type(mw) == "table" and type(mw.call) == "function") or type(mw) == "function" then
+        
+        -- If we have a 'call' function, then we insert the result into our rack
+        -- Or if we simply have a function, we can add that instead
+        if (type(mw) == "table" and type(mw.call) == "function") then
+            mw = mw.call(options)
+        end
+        -- If we have a 'index' key, then we insert the result into our rack on the index
+        if options.index then 
+            table.insert(ngx.ctx.rack.middleware, options.index, mw)
+        else
+            table.insert(ngx.ctx.rack.middleware, mw)
+        end
+        -- If we have a 'autorun' key, then we run this application
+        if options.autorun then run() end
     else
         return nil, "Invalid middleware"
     end
@@ -105,43 +112,29 @@ function run()
     -- For request headers, we must:
     -- * Keep track of fake request headers in a normalised (lowercased / underscored) state.
     -- * First try a direct hit, then fall back to the normalised table, and ngx.var.http_*
-    local req_h_mt = {
+    local header_mt = {
         normalised = {}
     }
 
-    req_h_mt.__index = function(t, k)
+    header_mt.__index = function(t, k)
         k = k:lower():gsub("-", "_")
-        return req_h_mt.normalised[k] or ngx.var["http_" .. k] 
+        return header_mt.normalised[k] or ngx.var["http_" .. k] 
     end
 
-    req_h_mt.__newindex = function(t, k, v)
+    header_mt.__newindex = function(t, k, v)
         rawset(t, k, v)
 
         k = k:lower():gsub("-", "_")
-        req_h_mt.normalised[k] = v
+        header_mt.normalised[k] = v
     end
 
-    setmetatable(ngx.ctx.rack.req.header, req_h_mt)
+    setmetatable(ngx.ctx.rack.req.header, header_mt)
 
 
     -- For response headers, we simply keep things proxied and normalised, to be set
     -- to ngx.header.* later.
-    local res_h_mt = {
-        normalised = {}
-    }
 
-    res_h_mt.__index = function(t, k)
-        k = k:lower():gsub("-", "_")
-        return res_h_mt.normalised[k]
-    end
-
-    res_h_mt.__newindex = function(t, k, v)
-        rawset(t, k, v)
-        k = k:lower():gsub("-", "_")
-        res_h_mt.normalised[k] = v
-    end
-
-    setmetatable(ngx.ctx.rack.res.header, res_h_mt)
+    setmetatable(ngx.ctx.rack.res.header, header_mt)
 
     next()
 end
