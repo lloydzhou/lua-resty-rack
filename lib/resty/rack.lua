@@ -10,7 +10,9 @@ middleware = {}
 middleware.method_override = require "resty.rack.method_override"
 middleware.read_request_headers = require "resty.rack.read_request_headers"
 middleware.read_body = require "resty.rack.read_body"
-
+middleware.config = require "resty.rack.config"
+middleware.mongol = require "resty.rack.mongol"
+middleware.restful = require "resty.rack.restful"
 
 -- Register some middleware to be used.
 --
@@ -193,4 +195,5 @@ getmetatable(resty.rack).__newindex = function (table, key, val)
     error('attempt to write to undeclared variable "' .. key .. '": '
             .. debug.traceback())
 end
+
 
