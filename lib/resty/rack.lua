@@ -138,11 +138,8 @@ function run()
     setmetatable(ngx.ctx.rack.res.header, header_mt)
 
     -- merge all handlers in ngx.ctx.rack.middleware
-    local middleware = {}
-    for i,v in pairs(ngx.ctx.rack.beforemiddleware) do table.insert(middleware, v) end
-    for i,v in pairs(ngx.ctx.rack.middleware) do table.insert(middleware, v) end
-    for i,v in pairs(ngx.ctx.rack.aftermiddleware) do table.insert(middleware, v) end
-    ngx.ctx.rack.middleware = middleware
+    for i,v in pairs(ngx.ctx.rack.beforemiddleware) do table.insert(ngx.ctx.rack.middleware, 1, v) end
+    for i,v in pairs(ngx.ctx.rack.aftermiddleware ) do table.insert(ngx.ctx.rack.middleware,    v) end
 
     next()
 end
