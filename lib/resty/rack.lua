@@ -2,27 +2,27 @@ module("resty.rack", package.seeall)
 
 _VERSION = '0.02'
 
-middleware = {}
-
--- Preload bundled middleware
--- This is at least means the modules only load once, but perhaps some kind
--- of lazy loading method would be better.
-middleware.method_override = require "resty.rack.method_override"
-middleware.read_request_headers = require "resty.rack.read_request_headers"
-middleware.read_body = require "resty.rack.read_body"
-middleware.config = require "resty.rack.config"
-middleware.mongol = require "resty.rack.mongol"
-middleware.restful = require "resty.rack.restful"
+-- lazy loading method would be better.
+middleware = setmetatable({}, {__index = function(t, k)
+  local ok, new_lib_or_error = pcall(function() return require('resty.rack.' .. k); end)
+  if not ok then ngx.log(ngx.ERR, "can not load middleware: " .. k, new_lib_or_error) end
+  return ok and rawset(t, k, new_lib_or_error) and new_lib_or_error or nil
+end})
 
 -- Register some middleware to be used.
---
 -- @param   string  route       Optional, dfaults to '/'.
 -- @param   table   middleware  The middleware module
 -- @param   table   options     Table of options for the middleware. 
 -- @return  void
 function use(...) _use('', ...) end
+
+-- @see use(...)
 function after(...) _use('after', ...) end
+
+-- @see use(...)
 function before(...) _use('before', ...) end
+
+-- Helper function to register middleware.
 function _use(...)
     -- Process the args
     local args = {...}
@@ -96,46 +96,55 @@ function run()
     -- uri_full = http://example.com/test?arg=true
     ngx.ctx.rack.req.uri_full = ngx.var.scheme .. '://' .. ngx.var.host .. ngx.ctx.rack.req.uri_relative
 
-
     -- Case insensitive request and response headers.
     --
     -- ngx_lua has request headers available case insensitively with ngx.var.http_*, but
     -- these cannot be iternated over or added to (for fake request headers).
-    --
     -- Response headers are set to ngx.header.*, and can also be set and read case
     -- insensitively, but they cannot be iterated over.
-    --
     -- Ideally, we should be able to set/get headers in req.header and res.header case
     -- insensitively, with optional underscores instead of dashes (for consistency), and
     -- iterate over them (with the case they were set).
 
-
     -- For request headers, we must:
     -- * Keep track of fake request headers in a normalised (lowercased / underscored) state.
     -- * First try a direct hit, then fall back to the normalised table, and ngx.var.http_*
-    local header_mt = {
+    local req_h_mt = {
         normalised = {}
     }
 
-    header_mt.__index = function(t, k)
+    req_h_mt.__index = function(t, k)
         k = k:lower():gsub("-", "_")
-        return header_mt.normalised[k] or ngx.var["http_" .. k] 
+        return req_h_mt.normalised[k] or ngx.var["http_" .. k] 
     end
 
-    header_mt.__newindex = function(t, k, v)
+    req_h_mt.__newindex = function(t, k, v)
         rawset(t, k, v)
 
         k = k:lower():gsub("-", "_")
-        header_mt.normalised[k] = v
+        req_h_mt.normalised[k] = v
     end
 
-    setmetatable(ngx.ctx.rack.req.header, header_mt)
-
-
+    setmetatable(ngx.ctx.rack.req.header, req_h_mt)
+    
     -- For response headers, we simply keep things proxied and normalised, to be set
     -- to ngx.header.* later.
+    local res_h_mt = {
+        normalised = {}
+    }
 
-    setmetatable(ngx.ctx.rack.res.header, header_mt)
+    res_h_mt.__index = function(t, k)
+        k = k:lower():gsub("-", "_")
+        return res_h_mt.normalised[k]
+    end
+
+    res_h_mt.__newindex = function(t, k, v)
+        rawset(t, k, v)
+        k = k:lower():gsub("-", "_")
+        res_h_mt.normalised[k] = v
+    end
+
+    setmetatable(ngx.ctx.rack.res.header, res_h_mt)
 
     -- merge all handlers in ngx.ctx.rack.middleware
     for i,v in pairs(ngx.ctx.rack.beforemiddleware) do table.insert(ngx.ctx.rack.middleware, 1, v) end
@@ -143,7 +152,6 @@ function run()
 
     next()
 end
-
 
 -- Runs the next middleware in the rack.
 function next()
@@ -159,8 +167,7 @@ function next()
         local post_function = mw(req, res, next)
 
         if not ngx.headers_sent then
-            assert(res.status, 
-                "Middleware returned with no status. Perhaps you need to call next().")
+            assert(res.status, "Middleware returned with no status. Perhaps you need to call next().")
 
             -- If we have a 5xx or a 3/4xx and no body entity, exit allowing nginx config
             -- to generate a response.
@@ -187,9 +194,7 @@ function next()
     end
 end
 
-
 -- to prevent use of casual module global variables
 getmetatable(resty.rack).__newindex = function (table, key, val)
-    error('attempt to write to undeclared variable "' .. key .. '": '
-            .. debug.traceback())
+    error('attempt to write to undeclared variable "' .. key .. '": ' .. debug.traceback())
 end

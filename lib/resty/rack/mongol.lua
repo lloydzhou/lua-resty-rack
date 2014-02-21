@@ -53,7 +53,7 @@ function call(options)
 	            if col then
 	                local id, r, t = col:query(req.options.query or {}, req.options.fields or nil, 
 	                	req.options.skip or 0, req.options.limit or 20, nil, req.options.bson_callback or readbson_callback)   
-	                req.data = req.options.callback and req.options.callback(r) or r
+	                res.body = req.options.callback and req.options.callback(r) or r
 	                req.options.callback = ""
 	                req.options.bson_callback = ""
 	                conn:set_keepalive(60, 500)
