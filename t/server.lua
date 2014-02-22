@@ -19,8 +19,8 @@ rack.before(rack.middleware.config, {
 	collection = "version",
 	query = {},
 	fields = nil,
-	skip = tonumber(req.args.skip) or 0, 
-	limit = tonumber(req.args.limit) or 20,
+	skip = tonumber(ngx.var.arg_skip) or 0, 
+	limit = tonumber(ngx.var.arg_limit) or 20,
 	framedownload = "http://localhost/frame/download/",
 	zipdownload = "http://localhost/livezip/download/"
 })
