@@ -1,4 +1,3 @@
---local rack = require "resty.rack"
 local prefix = "/live"
 local gettagcolor = function(mtag, name)
     local reqs, tag = {}, {} 
@@ -14,7 +13,17 @@ local gettagcolor = function(mtag, name)
     return tag
 end
 
-rack.before(rack.middleware.config)
+rack.before(rack.middleware.config, {
+	host = "210.14.154.142", 
+	dbname = "androidesk_ipai",
+	collection = "version",
+	query = {},
+	fields = nil,
+	skip = tonumber(req.args.skip) or 0, 
+	limit = tonumber(req.args.limit) or 20,
+	framedownload = "http://localhost/frame/download/",
+	zipdownload = "http://localhost/livezip/download/"
+})
 rack.after(rack.middleware.restful)
 rack.after(rack.middleware.etag)
 
