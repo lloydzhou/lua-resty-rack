@@ -10,8 +10,8 @@ function call(options)
     		collection = "version",
     		query = {},
     		fields = nil,
-    		skip = 0, 
-    		limit = 20,
+    		skip = tonumber(req.args.skip) or 0, 
+    		limit = tonumber(req.args.limit) or 20,
     		framedownload = "http://localhost/frame/download/",
     		zipdownload = "http://localhost/livezip/download/"
     	}
