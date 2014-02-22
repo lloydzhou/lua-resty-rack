@@ -147,8 +147,8 @@ function run()
     setmetatable(ngx.ctx.rack.res.header, res_h_mt)
 
     -- merge all handlers in ngx.ctx.rack.middleware
-    for i,v in pairs(ngx.ctx.rack.beforemiddleware) do table.insert(ngx.ctx.rack.middleware, 1, v) end
-    for i,v in pairs(ngx.ctx.rack.aftermiddleware ) do table.insert(ngx.ctx.rack.middleware,    v) end
+    -- for i,v in pairs(ngx.ctx.rack.beforemiddleware) do table.insert(ngx.ctx.rack.middleware, 1, v) end
+    -- for i,v in pairs(ngx.ctx.rack.aftermiddleware ) do table.insert(ngx.ctx.rack.middleware,    v) end
 
     next()
 end
@@ -156,7 +156,9 @@ end
 -- Runs the next middleware in the rack.
 function next()
     -- Pick each piece of middleware off in order
-    local mw = table.remove(ngx.ctx.rack.middleware, 1)
+    local mw =  (table.getn(ngx.ctx.rack.beforemiddleware) and table.remove(ngx.ctx.rack.beforemiddleware, 1))
+             or (table.getn(ngx.ctx.rack.middleware)       and table.remove(ngx.ctx.rack.middleware, 1))
+             or                                                table.remove(ngx.ctx.rack.aftermiddleware, 1)
 
     if type(mw) == "function" then
         local req = ngx.ctx.rack.req

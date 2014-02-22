@@ -4,13 +4,13 @@ _VERSION = '0.01'
 
 local ObjectId = require "resty.mongol.ObjectId"
 local mongo = require "resty.mongol"
-
-function call(options)
-    local hex2str = function (s)
-        return s:gsub('(%x%x)', function(value) return string.char(tonumber(value, 16)) end)
-    end
+local hex2str = function (s)
+    return s:gsub('(%x%x)', function(value) return string.char(tonumber(value, 16)) end)
+end
+hex2objid = function (hex) return ObjectId(hex2str(hex)) end
     
-    local hex2objid = function (hex) return ObjectId(hex2str(hex)) end
+function call(options)
+
 
     return function(req, res, next)
 	    for k,v in pairs(options) do 

@@ -21,6 +21,7 @@ function call(options)
 		local dateformat = function (v) return os.date("%Y-%m-%d %H:%M", v/1000 - 8 * 60 * 60) end
 		local default_bson_map = {
 		    _id = objidformat, 
+		    sid = objidformat, 
 		    zip = function(v) return livezipformat(v) end,
 		    preview = function(v) return livezipformat(v, "mp4") end,
 		    conf = function(v) return livezipformat(v, "config") end,
@@ -44,7 +45,7 @@ function call(options)
 	    for k,v in pairs(options) do 
 	    	req.options[k] = v
 	    end
-	    conn = mongo:new()
+	    local conn = mongo:new()
 	    local ok, err = conn:connect(req.options.host)
 	    if ok then
 	        local db = conn:new_db_handle(req.options.dbname)
@@ -53,9 +54,9 @@ function call(options)
 	            if col then
 	                local id, r, t = col:query(req.options.query or {}, req.options.fields or nil, 
 	                	req.options.skip or 0, req.options.limit or 20, nil, req.options.bson_callback or readbson_callback)   
-	                res.body = req.options.callback and req.options.callback(r) or r
-	                req.options.callback = ""
-	                req.options.bson_callback = ""
+	                if req.options.callback then res.body = req.options.callback(r) else res.body =  r end
+	                req.options.callback = nil
+	                req.options.bson_callback = nil
 	                conn:set_keepalive(60, 500)
 	                res.status = 200
 	                return next()
