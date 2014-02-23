@@ -23,31 +23,40 @@ function call(options)
             if db then
                 local fs = db:get_gridfs("fs")
                 if fs then
-                    local gf = fs:find_one({_id = hex2objid(req.args.id) })
+                    local gf = fs:find_one({_id = hex2objid(options.id or req.args.id) })
                     if not gf then 
                         ngx.exit(ngx.HTTP_NOT_FOUND)
-                    end
-                    -- get the offset and size from http range header
-                    local range = req.header.range or "bytes=0-"
-                    range = range:gsub("bytes=", "")
-                    local i = range:find("-") or 1
-                    local l = range:len()
-                    local offset, size = nil, nil
-                    if i == 1 then 
-                        offset, size = 0, tonumber(range:sub(i+1), 10)
-                    elseif i == l then
-                        offset, size = tonumber(range:sub(1, i-1), 10), nil 
-                    else                    
-                        offset, size = tonumber(range:sub(1, i-1), 10), tonumber(range:sub(i+1), 10)
-                        size = size - offset
-                    end
+                    elseif req.header["If-None-Match"] and req.header["If-None-Match"] == gf.file_md5 then 
+        		        res.status = 304
+                        --ngx.say(gf.file_md5 .. " -- " .. (gf.file_name or "") .. " -- " .. gf.file_size .. " -- ".. gf.files_id.id)
+                    else
+                        -- get the offset and size from http range header
+                        local range = req.header.range or "bytes=0-"
+                        range = range:gsub("bytes=", "")
+                        local i = range:find("-") or 1
+                        local l = range:len()
+                        local offset, size = nil, nil
+                        if i == 1 then 
+                            offset, size = 0, tonumber(range:sub(i+1), 10)
+                        elseif i == l then
+                            offset, size = tonumber(range:sub(1, i-1), 10), nil 
+                        else                    
+                            offset, size = tonumber(range:sub(1, i-1), 10), tonumber(range:sub(i+1), 10)
+                            size = size - offset
+                        end
 
-                    res.header.content_type = req.options.content_type or "image/png";
-                    if content_desc then 
-                        ngx.header.content_disposition = req.options.content_desc;
+                        res.header.content_type = req.options.content_type or "image/png";
+                        if content_desc then 
+                            ngx.header.content_disposition = req.options.content_desc;
+                        end
+                        res.header["ETag"] = gf.file_md5
+                        res.header["Accept-Ranges"] = "bytes"
+                        res.header["Content-Range"] = "bytes ".. offset .. "-" 
+                            .. (size and size+offset or gf.file_size) .. "/" .. gf.file_size
+                        res.header["content-Length"] = size or gf.file_size
+                        res.body = gf:read(size, offset)
+                        res.status = 200
                     end
-                    res.body = gf:read(size, offset)
-                    res.status = 200
                     conn:set_keepalive(60, 500)
                 	return next()
                 else

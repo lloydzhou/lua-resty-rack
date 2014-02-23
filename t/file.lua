@@ -8,7 +8,7 @@ rack.before(rack.middleware.config, {
 	limit = 1
 })
 
-rack.after(rack.middleware.etag)
+--rack.after(rack.middleware.etag)
 
 rack.use(rack.middleware.filterid)
 
