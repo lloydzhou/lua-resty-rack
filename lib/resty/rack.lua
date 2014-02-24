@@ -37,8 +37,6 @@ function _use(...)
         } 
     end
 
-    middleware = ngx.ctx.rack[before_or_after .. 'middleware']
-
     route = table.remove(args, 1)
     if type(route) == "table" or type(route) == "function" then
         mw = route
@@ -59,7 +57,7 @@ function _use(...)
         if (type(mw) == "table" and type(mw.call) == "function") then
             mw = mw.call(options)
         end
-        table.insert(middleware, mw)
+        table.insert(ngx.ctx.rack[before_or_after .. 'middleware'], mw)
         -- If we have a 'autorun' key, then we run this application
         if options.autorun then run() end
     else
@@ -178,7 +176,7 @@ function next()
             end
 
             -- Otherwise send the response as normal.
-            ngx.status = res.status
+            ngx.status = res.status 
             for k,v in pairs(res.header) do
                 ngx.header[k] = v
             end

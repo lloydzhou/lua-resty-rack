@@ -15,6 +15,7 @@ function call(options)
 	        end
 	    end
 	    res.header.content_type = res.header.content_type or "text/plain; charset=uf-8;"
+        --res.status = "200 every thing is OK for rack."
 	    next()
     end
 end

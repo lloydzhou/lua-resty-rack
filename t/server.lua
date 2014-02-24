@@ -1,3 +1,4 @@
+local cjson = require "cjson"
 local prefix = "/live"
 local gettagcolor = function(mtag, name)
     local reqs, tag = {}, {} 
@@ -8,7 +9,7 @@ local gettagcolor = function(mtag, name)
         end
     end
     if table.getn(reqs) > 0 then
-        for i, res in ipairs({ ngx.location.capture_multi(reqs) }) do tag[i]["color"] = res.body end
+        for i, res in ipairs({ ngx.location.capture_multi(reqs) }) do tag[i]["color"] = cjson.decode(res.body).resp end
     end
     return tag
 end
@@ -21,8 +22,8 @@ rack.before(rack.middleware.config, {
 	fields = nil,
 	skip = tonumber(ngx.var.arg_skip) or 0, 
 	limit = tonumber(ngx.var.arg_limit) or 20,
-	framedownload = "http://localhost/frame/download/",
-	zipdownload = "http://localhost/livezip/download/"
+	framedownload = "http://wuhan-dev/download/frame/",
+	zipdownload = "http://wuhan-dev/download/livezip/"
 })
 rack.after(rack.middleware.restful)
 rack.after(rack.middleware.etag)
@@ -62,11 +63,12 @@ rack.use(prefix.."/tagcolor", function(req, res, next)
     local query = ngx.var.arg_name and {name = ngx.unescape_uri(ngx.var.arg_name)} or {} 
     rack.use(rack.middleware.mongol, {collection = "tag", query=query, callback=function(r) 
     if r[1] and r[1].cid then 
-        rack.use(rack.middleware.mongol, {collection = "tag_category", 
+        rack.use( rack.middleware.mongol, {collection = "tag_category", 
             query={_id=r[1].cid },
-            callback=function(r) return r[1] and r[1].color or "null" end})
+            callback=function(r) return r[1] and r[1].color end})
     end
-    return "" end})
+    return nil end})
+    next()
 end)
 
 rack.run()
